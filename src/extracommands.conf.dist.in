@@ -1,0 +1,82 @@
+################################################
+# ExtraCommands Module Configuration          #
+################################################
+
+[ExtraCommandsConf]
+
+###################################################################################################################
+# ExtraCommands.Enabled
+#   Enable or disable the ExtraCommands module entirely.
+#   Default: 1 (enabled)
+###################################################################################################################
+ExtraCommands.Enabled = 1
+
+###################################################################################################################
+# ExtraCommands.SecurityLevel
+#   Minimum GM security level required to use .ec commands.
+#   0 = Player | 1 = Moderator | 2 = GameMaster | 3 = Administrator
+#   Default: 2 (GameMaster)
+###################################################################################################################
+ExtraCommands.SecurityLevel = 2
+
+###################################################################################################################
+# GUILD DATA COMMANDS
+#
+# .ec guildmotd "<guildname>" <message>
+#     Sets the guild MOTD and broadcasts it live to all online members.
+#
+# .ec guildinfo "<guildname>" <text>
+#     Sets the guild info text shown in the Guild tab.
+#
+# .ec guildpnote <playername> <note>
+#     Sets the public note for a guild member. Works on offline members.
+#
+# .ec guildoffnote <playername> <note>
+#     Sets the officer note for a guild member. Works on offline members.
+#
+# .ec guildlist "<guildname>"
+#     Lists all guild members: NAME|RANKID|LEVEL|CLASS|ONLINE|PNOTE|OFFNOTE
+#
+# .ec guildcount "<guildname>"
+#     Shows total members, online count, and average level for a guild.
+#
+# .ec guildempty
+#     Lists all guilds that currently have no online members.
+#
+###################################################################################################################
+
+###################################################################################################################
+# GUILD FLAVOR COMMANDS
+#
+# .ec guildflavor "<guildname>"
+#     Shows current strategy overrides for the guild (queries ai_playerbot_db_store).
+#
+# .ec guildflavor "<guildname>" <flavor>
+#     Sets flavor strategy for all guild members in ai_playerbot_db_store.
+#     Online bots are updated immediately without a relog.
+#     Flavors: leveling | quest | pvp | farming | default
+#     "default" clears all overrides — bots fall back to global aiplayerbot.conf config.
+#
+###################################################################################################################
+
+###################################################################################################################
+# BOT STRATEGY COMMANDS  (requires BUILD_PLAYERBOTS=ON)
+#
+# .ec botstrat <name>
+#     Shows active co / nc / react / dead strategies for an online bot.
+#
+# .ec botstrat <name> co|nc|react|dead <strategies>
+#     Changes strategies for an online bot immediately.
+#     Strategy syntax: +add, -remove, ~toggle — comma-separated.
+#     Example: .ec botstrat Grimbolt co +dps,+dps assist,-threat
+#
+# .ec botdbreset <name>
+#     Clears ai_playerbot_db_store for a bot and resets live strategies to defaults.
+#     Bot will use global aiplayerbot.conf config until next guildflavor sync.
+#
+# .ec nearbystrategies [radius]
+#     Lists all bots within radius yards with their co and nc strategies.
+#     Default radius: 30 yards.
+#     Example: .ec nearbystrategies 50
+#
+###################################################################################################################
