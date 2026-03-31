@@ -7,7 +7,7 @@
 #include "Guilds/Guild.h"
 #include "Entities/Player.h"
 #include "World/World.h"
-#include "WorldSession.h"
+#include "Server/WorldSession.h"
 #include "Log/Log.h"
 #include "Database/DatabaseEnv.h"
 
