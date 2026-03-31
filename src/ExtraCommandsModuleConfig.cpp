@@ -12,8 +12,8 @@ ExtraCommandsModuleConfig::ExtraCommandsModuleConfig()
 
 bool ExtraCommandsModuleConfig::OnLoad()
 {
-    enabled      = GetBoolDefault("ExtraCommands.Enabled",       true);
-    securityLevel = GetIntDefault ("ExtraCommands.SecurityLevel", SEC_GAMEMASTER);
+    enabled       = config.GetBoolDefault("ExtraCommands.Enabled",       true);
+    securityLevel = config.GetIntDefault ("ExtraCommands.SecurityLevel", SEC_GAMEMASTER);
     return true;
 }
 
