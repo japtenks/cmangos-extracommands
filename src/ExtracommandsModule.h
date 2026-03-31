@@ -1,6 +1,6 @@
 #pragma once
 #include "Module.h"
-#include "ExtracommandsModuleConfig.h"
+#include "ExtraCommandsModuleConfig.h"
 #include <vector>
 #include <string>
 #include <list>
