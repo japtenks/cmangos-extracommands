@@ -23,6 +23,7 @@ if(BUILD_PLAYERBOTS)
     include_directories(${CMAKE_SOURCE_DIR}/src/modules/playerbot)
     include_directories(${CMAKE_SOURCE_DIR}/dep/g3dlite)
     add_definitions(-DHAVE_PLAYERBOTS)
+    add_definitions(-DENABLE_PLAYERBOTS)
 endif()
 
 # Expansion flags

@@ -3,6 +3,7 @@
 
 // CMaNGOS core includes
 #include "Globals/ObjectMgr.h"
+#include "Globals/ObjectAccessor.h"
 #include "Guilds/GuildMgr.h"
 #include "Guilds/Guild.h"
 #include "Entities/Player.h"
@@ -13,6 +14,7 @@
 
 #include <sstream>
 #include <map>
+#include <set>
 
 namespace cmangos_module
 {
@@ -278,18 +280,30 @@ bool ExtraCommandsModule::HandleGuildListCommand(WorldSession* session, const st
     handler.PSendSysMessage("GUILD|%s", guild->GetName().c_str());
     handler.SendSysMessage("NAME|RANKID|LEVEL|CLASS|ONLINE|PNOTE|OFFNOTE");
 
-    Guild::MemberList const& members = guild->GetMembers();
-    for (auto const& kv : members)
-    {
-        MemberSlot const& m = kv.second;
-        Player*           p = sObjectMgr.GetPlayer(m.guid);
-        uint32 lvl = p ? p->GetLevel()   : m.RankLevel;
-        uint32 cls = p ? p->getClass()   : m.RankClass;
-        bool   on  = (p != nullptr);
+    auto results = CharacterDatabase.PQuery(
+        "SELECT gm.guid, gm.rank, gm.pnote, gm.offnote, c.name, c.level, c.class "
+        "FROM guild_member gm JOIN characters c ON c.guid = gm.guid "
+        "WHERE gm.guildid = %u ORDER BY gm.rank, c.name", guild->GetId());
 
-        handler.PSendSysMessage("%s|%u|%u|%u|%d|%s|%s",
-            m.Name.c_str(), m.RankId, lvl, cls, on ? 1 : 0,
-            m.Pnote.c_str(), m.OFFnote.c_str());
+    if (results)
+    {
+        do
+        {
+            Field* f = results->Fetch();
+            ObjectGuid guid = ObjectGuid(HIGHGUID_PLAYER, f[0].GetUInt32());
+            Player* p = sObjectMgr.GetPlayer(guid);
+            uint32 rankId = f[1].GetUInt32();
+            std::string pnote  = f[2].GetString();
+            std::string offnote = f[3].GetString();
+            std::string name   = f[4].GetString();
+            uint32 lvl = p ? p->GetLevel()   : f[5].GetUInt32();
+            uint32 cls = p ? p->getClass()   : f[6].GetUInt32();
+            bool on = (p != nullptr);
+
+            handler.PSendSysMessage("%s|%u|%u|%u|%d|%s|%s",
+                name.c_str(), rankId, lvl, cls, on ? 1 : 0,
+                pnote.c_str(), offnote.c_str());
+        } while (results->NextRow());
     }
 
     handler.SendSysMessage("END|GUILDLIST");
@@ -309,26 +323,25 @@ bool ExtraCommandsModule::HandleGuildCountCommand(WorldSession* session, const s
     Guild* guild = sGuildMgr.GetGuildByName(guildName);
     if (!guild) { SendMsg(session, "Guild not found: " + guildName); return false; }
 
-    Guild::MemberList const& members = guild->GetMembers();
+    uint32 total = guild->GetMemberSize();
 
-    int total = 0, online = 0;
-    uint64 levelSum = 0;
+    auto results = CharacterDatabase.PQuery(
+        "SELECT AVG(c.level), SUM(c.online) "
+        "FROM guild_member gm JOIN characters c ON c.guid = gm.guid "
+        "WHERE gm.guildid = %u", guild->GetId());
 
-    for (auto const& kv : members)
+    float avgLevel = 0.0f;
+    int online = 0;
+    if (results)
     {
-        MemberSlot const& m = kv.second;
-        Player* p = sObjectMgr.GetPlayer(m.guid);
-        uint32 lvl = p ? p->GetLevel() : m.RankLevel;
-        levelSum += lvl;
-        ++total;
-        if (p) ++online;
+        Field* f = results->Fetch();
+        avgLevel = f[0].GetFloat();
+        online   = f[1].GetUInt32();
     }
-
-    float avgLevel = total > 0 ? (float)levelSum / total : 0.0f;
 
     ChatHandler handler(session);
     handler.PSendSysMessage("Guild: %s", guildName.c_str());
-    handler.PSendSysMessage("Members: %d total | %d online | avg level %.1f", total, online, avgLevel);
+    handler.PSendSysMessage("Members: %u total | %d online | avg level %.1f", total, online, avgLevel);
     return true;
 }
 
@@ -336,17 +349,15 @@ bool ExtraCommandsModule::HandleGuildCountCommand(WorldSession* session, const s
 // Lists guilds that have no online bots.
 bool ExtraCommandsModule::HandleGuildEmptyCommand(WorldSession* session, const std::string& /*args*/)
 {
-    // Build a map of online member counts per guild from active sessions
-    std::map<uint32, int> onlinePerGuild;
-    SessionMap const& sessions = sWorld.GetAllSessions();
-    for (auto const& pair : sessions)
+    // Build set of guild IDs that have at least one online member
+    std::set<uint32> onlineGuildIds;
+    auto& players = sObjectAccessor.GetPlayers();
+    for (auto const& pair : players)
     {
-        WorldSession* ws = pair.second;
-        if (!ws) continue;
-        Player* p = ws->GetPlayer();
+        Player* p = pair.second;
         if (!p) continue;
         uint32 gid = p->GetGuildId();
-        if (gid) onlinePerGuild[gid]++;
+        if (gid) onlineGuildIds.insert(gid);
     }
 
     // Query all guilds from DB and report those with 0 online
@@ -369,7 +380,7 @@ bool ExtraCommandsModule::HandleGuildEmptyCommand(WorldSession* session, const s
         uint32 guildId = fields[0].GetUInt32();
         std::string name = fields[1].GetString();
 
-        if (onlinePerGuild.find(guildId) == onlinePerGuild.end())
+        if (onlineGuildIds.find(guildId) == onlineGuildIds.end())
         {
             handler.PSendSysMessage("  %s", name.c_str());
             ++count;
@@ -409,8 +420,8 @@ bool ExtraCommandsModule::HandleGuildFlavorCommand(WorldSession* session, const 
     Guild* guild = sGuildMgr.GetGuildByName(guildName);
     if (!guild) { SendMsg(session, "Guild not found: " + guildName); return false; }
 
-    Guild::MemberList const& members = guild->GetMembers();
-    if (members.empty()) { SendMsg(session, "Guild has no members."); return false; }
+    uint32 memberCount = guild->GetMemberSize();
+    if (memberCount == 0) { SendMsg(session, "Guild has no members."); return false; }
 
     ChatHandler handler(session);
 
@@ -418,14 +429,16 @@ bool ExtraCommandsModule::HandleGuildFlavorCommand(WorldSession* session, const 
     if (remainder.empty())
     {
         // Query DB store for the first member to show current overrides
-        ObjectGuid sampleGuid = members.begin()->second.guid;
-        uint64 rawGuid = sampleGuid.GetRawValue();
+        auto firstMember = CharacterDatabase.PQuery(
+            "SELECT guid FROM guild_member WHERE guildid = %u LIMIT 1", guild->GetId());
+        if (!firstMember) { SendMsg(session, "No members found in DB."); return false; }
+        uint64 rawGuid = firstMember->Fetch()[0].GetUInt64();
 
         auto results = CharacterDatabase.PQuery(
             "SELECT `key`, `value` FROM ai_playerbot_db_store "
             "WHERE guid = '%lu' AND preset = 'default'", rawGuid);
 
-        handler.PSendSysMessage("Guild: %s (%u members)", guildName.c_str(), (uint32)members.size());
+        handler.PSendSysMessage("Guild: %s (%u members)", guildName.c_str(), memberCount);
 
         if (!results)
         {
@@ -457,44 +470,51 @@ bool ExtraCommandsModule::HandleGuildFlavorCommand(WorldSession* session, const 
         return false;
     }
 
+    auto memberResults = CharacterDatabase.PQuery(
+        "SELECT guid FROM guild_member WHERE guildid = %u", guild->GetId());
+
     int applied = 0;
-    for (auto const& kv : members)
+    if (memberResults)
     {
-        uint64 rawGuid = kv.second.guid.GetRawValue();
-
-        // Clear existing overrides for this bot
-        CharacterDatabase.PExecute(
-            "DELETE FROM ai_playerbot_db_store WHERE guid = '%lu' AND preset = 'default'", rawGuid);
-
-        if (!isDefault)
+        do
         {
-            const FlavorProfile& fp = s_flavorProfiles.at(flavor);
+            uint64 rawGuid = memberResults->Fetch()[0].GetUInt64();
+            ObjectGuid guid(HIGHGUID_PLAYER, (uint32)rawGuid);
 
+            // Clear existing overrides for this bot
             CharacterDatabase.PExecute(
-                "INSERT INTO ai_playerbot_db_store (guid, preset, `key`, value) VALUES "
-                "('%lu', 'default', 'co', '%s')", rawGuid, fp.co.c_str());
+                "DELETE FROM ai_playerbot_db_store WHERE guid = '%lu' AND preset = 'default'", rawGuid);
 
-            CharacterDatabase.PExecute(
-                "INSERT INTO ai_playerbot_db_store (guid, preset, `key`, value) VALUES "
-                "('%lu', 'default', 'nc', '%s')", rawGuid, fp.nc.c_str());
+            if (!isDefault)
+            {
+                const FlavorProfile& fp = s_flavorProfiles.at(flavor);
 
-            if (!fp.react.empty())
                 CharacterDatabase.PExecute(
                     "INSERT INTO ai_playerbot_db_store (guid, preset, `key`, value) VALUES "
-                    "('%lu', 'default', 'react', '%s')", rawGuid, fp.react.c_str());
-        }
+                    "('%lu', 'default', 'co', '%s')", rawGuid, fp.co.c_str());
+
+                CharacterDatabase.PExecute(
+                    "INSERT INTO ai_playerbot_db_store (guid, preset, `key`, value) VALUES "
+                    "('%lu', 'default', 'nc', '%s')", rawGuid, fp.nc.c_str());
+
+                if (!fp.react.empty())
+                    CharacterDatabase.PExecute(
+                        "INSERT INTO ai_playerbot_db_store (guid, preset, `key`, value) VALUES "
+                        "('%lu', 'default', 'react', '%s')", rawGuid, fp.react.c_str());
+            }
 
 #ifdef HAVE_PLAYERBOTS
-        // Apply live to any online bots immediately — no relog required
-        Player* bot = sObjectMgr.GetPlayer(kv.second.guid);
-        if (bot)
-        {
-            PlayerbotAI* ai = bot->GetPlayerbotAI();
-            if (ai)
-                ai->ResetStrategies(true); // true = reload from DB store we just wrote
-        }
+            // Apply live to any online bots immediately — no relog required
+            Player* bot = sObjectMgr.GetPlayer(guid);
+            if (bot)
+            {
+                PlayerbotAI* ai = bot->GetPlayerbotAI();
+                if (ai)
+                    ai->ResetStrategies(true); // true = reload from DB store we just wrote
+            }
 #endif
-        ++applied;
+            ++applied;
+        } while (memberResults->NextRow());
     }
 
     handler.PSendSysMessage("Guild [%s] flavor set to '%s' — %d members updated.",
@@ -624,12 +644,10 @@ bool ExtraCommandsModule::HandleNearbyStrategiesCommand(WorldSession* session, c
     handler.PSendSysMessage("Bots within %.0f yards:", radius);
 
     int count = 0;
-    SessionMap const& sessions = sWorld.GetAllSessions();
-    for (auto const& pair : sessions)
+    auto& players = sObjectAccessor.GetPlayers();
+    for (auto const& pair : players)
     {
-        WorldSession* ws = pair.second;
-        if (!ws) continue;
-        Player* p = ws->GetPlayer();
+        Player* p = pair.second;
         if (!p || p == gm) continue;
         if (p->GetMapId() != gm->GetMapId()) continue;
         if (gm->GetDistance(p) > radius) continue;
