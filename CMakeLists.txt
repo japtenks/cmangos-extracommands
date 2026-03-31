@@ -13,6 +13,8 @@ source_group("extracommands" FILES ${extracommands_source})
 set(LIBRARY_SRCS ${extracommands_source})
 
 include_directories(${CMAKE_SOURCE_DIR}/src/modules/modules/src)
+include_directories(${CMAKE_SOURCE_DIR}/src/game)
+include_directories(${CMAKE_SOURCE_DIR}/src/shared)
 add_definitions(-DENABLE_MODULES)
 add_definitions(-DENABLE_EXTRACOMMANDS)
 
