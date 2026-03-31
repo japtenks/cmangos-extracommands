@@ -1,6 +1,6 @@
 #pragma once
 #include "Module.h"
-#include "ExtraCommandsModuleConfig.h"
+#include "ExtracommandsModuleConfig.h"
 #include <vector>
 #include <string>
 #include <list>
@@ -15,10 +15,10 @@ class WorldSession;
 namespace cmangos_module
 {
 
-class ExtraCommandsModule : public Module
+class ExtracommandsModule : public Module
 {
 public:
-    ExtraCommandsModule();
+    ExtracommandsModule();
 
     // Module identity
     const char* GetChatCommandPrefix() const override { return "ec"; }
@@ -76,6 +76,6 @@ private:
 };
 
 // Static instance for self-registration
-static ExtraCommandsModule extraCommandsModule;
+static ExtracommandsModule extracommandsModule;
 
 }

@@ -1,4 +1,4 @@
-#include "ExtraCommandsModule.h"
+#include "ExtracommandsModule.h"
 #include "ExtraCommandsModuleConfig.h"
 
 // CMaNGOS core includes
@@ -45,12 +45,12 @@ static const std::map<std::string, FlavorProfile> s_flavorProfiles =
 // Module registration and lifecycle
 // =============================================================================
 
-ExtraCommandsModule::ExtraCommandsModule()
-    : Module("ExtraCommandsModule", new ExtraCommandsModuleConfig())
+ExtracommandsModule::ExtracommandsModule()
+    : Module("ExtracommandsModule", new ExtraCommandsModuleConfig())
 {
 }
 
-void ExtraCommandsModule::OnInitialize()
+void ExtracommandsModule::OnInitialize()
 {
     const ExtraCommandsModuleConfig* cfg =
         static_cast<const ExtraCommandsModuleConfig*>(GetConfig());
@@ -72,7 +72,7 @@ void ExtraCommandsModule::OnInitialize()
 // Command table
 // =============================================================================
 
-std::vector<ModuleChatCommand>* ExtraCommandsModule::GetCommandTable()
+std::vector<ModuleChatCommand>* ExtracommandsModule::GetCommandTable()
 {
     if (commandTable.empty())
     {
@@ -108,13 +108,13 @@ std::vector<ModuleChatCommand>* ExtraCommandsModule::GetCommandTable()
 // Helpers
 // =============================================================================
 
-void ExtraCommandsModule::SendMsg(WorldSession* session, const std::string& msg) const
+void ExtracommandsModule::SendMsg(WorldSession* session, const std::string& msg) const
 {
     if (session && session->GetPlayer())
         ChatHandler(session).SendSysMessage(msg.c_str());
 }
 
-std::string ExtraCommandsModule::NormalizeName(const std::string& name) const
+std::string ExtracommandsModule::NormalizeName(const std::string& name) const
 {
     if (name.empty()) return name;
     std::string out = name;
@@ -124,7 +124,7 @@ std::string ExtraCommandsModule::NormalizeName(const std::string& name) const
     return out;
 }
 
-std::string ExtraCommandsModule::ExtractQuoted(const std::string& input, std::string& remainder) const
+std::string ExtracommandsModule::ExtractQuoted(const std::string& input, std::string& remainder) const
 {
     size_t start = input.find('"');
     if (start == std::string::npos) return "";
@@ -141,7 +141,7 @@ std::string ExtraCommandsModule::ExtractQuoted(const std::string& input, std::st
     return quoted;
 }
 
-std::string ExtraCommandsModule::FormatStratList(std::list<std::string_view> strats) const
+std::string ExtracommandsModule::FormatStratList(std::list<std::string_view> strats) const
 {
     std::ostringstream ss;
     for (auto& sv : strats) ss << sv << " ";
@@ -155,7 +155,7 @@ std::string ExtraCommandsModule::FormatStratList(std::list<std::string_view> str
 // =============================================================================
 
 // .ec guildmotd "<guildname>" <message>
-bool ExtraCommandsModule::HandleGuildMotdCommand(WorldSession* session, const std::string& args)
+bool ExtracommandsModule::HandleGuildMotdCommand(WorldSession* session, const std::string& args)
 {
     if (args.empty()) { SendMsg(session, "Usage: .ec guildmotd \"<guildname>\" <message>"); return false; }
 
@@ -173,7 +173,7 @@ bool ExtraCommandsModule::HandleGuildMotdCommand(WorldSession* session, const st
 }
 
 // .ec guildinfo "<guildname>" <text>
-bool ExtraCommandsModule::HandleGuildInfoCommand(WorldSession* session, const std::string& args)
+bool ExtracommandsModule::HandleGuildInfoCommand(WorldSession* session, const std::string& args)
 {
     if (args.empty()) { SendMsg(session, "Usage: .ec guildinfo \"<guildname>\" <text>"); return false; }
 
@@ -190,7 +190,7 @@ bool ExtraCommandsModule::HandleGuildInfoCommand(WorldSession* session, const st
 }
 
 // .ec guildpnote <playername> <note>
-bool ExtraCommandsModule::HandleGuildPNoteCommand(WorldSession* session, const std::string& args)
+bool ExtracommandsModule::HandleGuildPNoteCommand(WorldSession* session, const std::string& args)
 {
     if (args.empty()) { SendMsg(session, "Usage: .ec guildpnote <playername> <note>"); return false; }
 
@@ -227,7 +227,7 @@ bool ExtraCommandsModule::HandleGuildPNoteCommand(WorldSession* session, const s
 }
 
 // .ec guildoffnote <playername> <note>
-bool ExtraCommandsModule::HandleGuildOFFNoteCommand(WorldSession* session, const std::string& args)
+bool ExtracommandsModule::HandleGuildOFFNoteCommand(WorldSession* session, const std::string& args)
 {
     if (args.empty()) { SendMsg(session, "Usage: .ec guildoffnote <playername> <note>"); return false; }
 
@@ -265,7 +265,7 @@ bool ExtraCommandsModule::HandleGuildOFFNoteCommand(WorldSession* session, const
 
 // .ec guildlist "<guildname>"
 // NAME|RANKID|LEVEL|CLASS|ONLINE|PNOTE|OFFNOTE
-bool ExtraCommandsModule::HandleGuildListCommand(WorldSession* session, const std::string& args)
+bool ExtracommandsModule::HandleGuildListCommand(WorldSession* session, const std::string& args)
 {
     if (args.empty()) { SendMsg(session, "Usage: .ec guildlist \"<guildname>\""); return false; }
 
@@ -312,7 +312,7 @@ bool ExtraCommandsModule::HandleGuildListCommand(WorldSession* session, const st
 
 // .ec guildcount "<guildname>"
 // Shows member total, online count, average level.
-bool ExtraCommandsModule::HandleGuildCountCommand(WorldSession* session, const std::string& args)
+bool ExtracommandsModule::HandleGuildCountCommand(WorldSession* session, const std::string& args)
 {
     if (args.empty()) { SendMsg(session, "Usage: .ec guildcount \"<guildname>\""); return false; }
 
@@ -347,7 +347,7 @@ bool ExtraCommandsModule::HandleGuildCountCommand(WorldSession* session, const s
 
 // .ec guildempty
 // Lists guilds that have no online bots.
-bool ExtraCommandsModule::HandleGuildEmptyCommand(WorldSession* session, const std::string& /*args*/)
+bool ExtracommandsModule::HandleGuildEmptyCommand(WorldSession* session, const std::string& /*args*/)
 {
     // Build set of guild IDs that have at least one online member
     std::set<uint32> onlineGuildIds;
@@ -401,7 +401,7 @@ bool ExtraCommandsModule::HandleGuildEmptyCommand(WorldSession* session, const s
 
 // .ec guildflavor "<guildname>"          — show current DB override for a sample member
 // .ec guildflavor "<guildname>" <flavor> — write flavor strategies to all guild members
-bool ExtraCommandsModule::HandleGuildFlavorCommand(WorldSession* session, const std::string& args)
+bool ExtracommandsModule::HandleGuildFlavorCommand(WorldSession* session, const std::string& args)
 {
     if (args.empty())
     {
@@ -530,7 +530,7 @@ bool ExtraCommandsModule::HandleGuildFlavorCommand(WorldSession* session, const 
 //   — show active co/nc/react/dead strategies
 // .ec botstrat <name> co|nc|react|dead <strategies>
 //   — change strategies live
-bool ExtraCommandsModule::HandleBotStratCommand(WorldSession* session, const std::string& args)
+bool ExtracommandsModule::HandleBotStratCommand(WorldSession* session, const std::string& args)
 {
 #ifndef HAVE_PLAYERBOTS
     SendMsg(session, "Server not built with playerbots.");
@@ -595,7 +595,7 @@ bool ExtraCommandsModule::HandleBotStratCommand(WorldSession* session, const std
 
 // .ec botdbreset <name>
 // Wipes ai_playerbot_db_store for a bot and resets live strategies to defaults.
-bool ExtraCommandsModule::HandleBotDbResetCommand(WorldSession* session, const std::string& args)
+bool ExtracommandsModule::HandleBotDbResetCommand(WorldSession* session, const std::string& args)
 {
     if (args.empty()) { SendMsg(session, "Usage: .ec botdbreset <name>"); return false; }
 
@@ -624,7 +624,7 @@ bool ExtraCommandsModule::HandleBotDbResetCommand(WorldSession* session, const s
 
 // .ec nearbystrategies [radius]
 // Lists all bots within radius yards with their co/nc strategies.
-bool ExtraCommandsModule::HandleNearbyStrategiesCommand(WorldSession* session, const std::string& args)
+bool ExtracommandsModule::HandleNearbyStrategiesCommand(WorldSession* session, const std::string& args)
 {
 #ifndef HAVE_PLAYERBOTS
     SendMsg(session, "Server not built with playerbots.");
