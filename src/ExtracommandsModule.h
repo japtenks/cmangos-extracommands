@@ -75,7 +75,4 @@ private:
     std::vector<ModuleChatCommand> commandTable;
 };
 
-// Static instance for self-registration
-static ExtracommandsModule extracommandsModule;
-
 }
