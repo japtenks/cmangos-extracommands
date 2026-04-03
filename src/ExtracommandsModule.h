@@ -69,6 +69,8 @@ private:
     // -------------------------------------------------------------------------
     std::string ExtractQuoted      (const std::string& input, std::string& remainder) const;
     std::string NormalizeName      (const std::string& name) const;
+    std::string Trim              (const std::string& input) const;
+    std::string UnquoteArgument   (const std::string& input) const;
     void        SendMsg            (WorldSession* session, const std::string& msg) const;
     std::string FormatStratList    (std::list<std::string_view> strats) const;
 

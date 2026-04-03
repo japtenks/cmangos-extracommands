@@ -15,6 +15,7 @@
 #include <sstream>
 #include <map>
 #include <set>
+#include <cctype>
 
 namespace cmangos_module
 {
@@ -124,6 +125,16 @@ std::string ExtracommandsModule::NormalizeName(const std::string& name) const
     return out;
 }
 
+std::string ExtracommandsModule::Trim(const std::string& input) const
+{
+    size_t start = input.find_first_not_of(" \t\r\n");
+    if (start == std::string::npos)
+        return "";
+
+    size_t end = input.find_last_not_of(" \t\r\n");
+    return input.substr(start, end - start + 1);
+}
+
 std::string ExtracommandsModule::ExtractQuoted(const std::string& input, std::string& remainder) const
 {
     size_t start = input.find('"');
@@ -139,6 +150,30 @@ std::string ExtracommandsModule::ExtractQuoted(const std::string& input, std::st
     remainder = (nonspace != std::string::npos) ? remainder.substr(nonspace) : "";
 
     return quoted;
+}
+
+std::string ExtracommandsModule::UnquoteArgument(const std::string& input) const
+{
+    std::string value = Trim(input);
+    if (value.size() < 2 || value.front() != '"' || value.back() != '"')
+        return value;
+
+    std::string unquoted;
+    unquoted.reserve(value.size() - 2);
+
+    for (size_t i = 1; i + 1 < value.size(); ++i)
+    {
+        if (value[i] == '\\' && i + 2 < value.size())
+        {
+            ++i;
+            unquoted.push_back(value[i]);
+            continue;
+        }
+
+        unquoted.push_back(value[i]);
+    }
+
+    return unquoted;
 }
 
 std::string ExtracommandsModule::FormatStratList(std::list<std::string_view> strats) const
@@ -161,14 +196,17 @@ bool ExtracommandsModule::HandleGuildMotdCommand(WorldSession* session, const st
 
     std::string remainder;
     std::string guildName = ExtractQuoted(args, remainder);
-    if (guildName.empty() || remainder.empty()) { SendMsg(session, "Usage: .ec guildmotd \"<guildname>\" <message>"); return false; }
+    std::string motdArg = Trim(remainder);
+    if (guildName.empty() || motdArg.empty()) { SendMsg(session, "Usage: .ec guildmotd \"<guildname>\" <message>"); return false; }
 
     Guild* guild = sGuildMgr.GetGuildByName(guildName);
     if (!guild) { SendMsg(session, "Guild not found: " + guildName); return false; }
 
-    guild->SetMOTD(remainder);
-    guild->BroadcastEvent(GE_MOTD, remainder.c_str());
-    SendMsg(session, "MOTD for [" + guildName + "] set to: " + remainder);
+    std::string motd = UnquoteArgument(motdArg);
+    guild->SetMOTD(motd);
+    guild->BroadcastEvent(GE_MOTD, motd.c_str());
+    SendMsg(session, motd.empty() ? "MOTD for [" + guildName + "] cleared."
+                                  : "MOTD for [" + guildName + "] set to: " + motd);
     return true;
 }
 
@@ -179,13 +217,16 @@ bool ExtracommandsModule::HandleGuildInfoCommand(WorldSession* session, const st
 
     std::string remainder;
     std::string guildName = ExtractQuoted(args, remainder);
-    if (guildName.empty() || remainder.empty()) { SendMsg(session, "Usage: .ec guildinfo \"<guildname>\" <text>"); return false; }
+    std::string infoArg = Trim(remainder);
+    if (guildName.empty() || infoArg.empty()) { SendMsg(session, "Usage: .ec guildinfo \"<guildname>\" <text>"); return false; }
 
     Guild* guild = sGuildMgr.GetGuildByName(guildName);
     if (!guild) { SendMsg(session, "Guild not found: " + guildName); return false; }
 
-    guild->SetGINFO(remainder);
-    SendMsg(session, "Info for [" + guildName + "] updated.");
+    std::string info = UnquoteArgument(infoArg);
+    guild->SetGINFO(info);
+    SendMsg(session, info.empty() ? "Info for [" + guildName + "] cleared."
+                                  : "Info for [" + guildName + "] updated.");
     return true;
 }
 
@@ -198,8 +239,9 @@ bool ExtracommandsModule::HandleGuildPNoteCommand(WorldSession* session, const s
     if (sp == std::string::npos) { SendMsg(session, "Usage: .ec guildpnote <playername> <note>"); return false; }
 
     std::string playerName = NormalizeName(args.substr(0, sp));
-    std::string note       = args.substr(sp + 1);
-    if (note.empty()) { SendMsg(session, "Usage: .ec guildpnote <playername> <note>"); return false; }
+    std::string rawNote    = Trim(args.substr(sp + 1));
+    if (rawNote.empty()) { SendMsg(session, "Usage: .ec guildpnote <playername> <note>"); return false; }
+    std::string note       = UnquoteArgument(rawNote);
 
     Player*    player     = sObjectMgr.GetPlayer(playerName.c_str());
     ObjectGuid playerGuid;
@@ -222,7 +264,8 @@ bool ExtracommandsModule::HandleGuildPNoteCommand(WorldSession* session, const s
     if (!member) { SendMsg(session, "Could not find guild member slot for " + playerName); return false; }
 
     member->SetPNOTE(note);
-    SendMsg(session, "Public note for " + playerName + " set to: " + note);
+    SendMsg(session, note.empty() ? "Public note for " + playerName + " cleared."
+                                  : "Public note for " + playerName + " set to: " + note);
     return true;
 }
 
@@ -235,8 +278,9 @@ bool ExtracommandsModule::HandleGuildOFFNoteCommand(WorldSession* session, const
     if (sp == std::string::npos) { SendMsg(session, "Usage: .ec guildoffnote <playername> <note>"); return false; }
 
     std::string playerName = NormalizeName(args.substr(0, sp));
-    std::string note       = args.substr(sp + 1);
-    if (note.empty()) { SendMsg(session, "Usage: .ec guildoffnote <playername> <note>"); return false; }
+    std::string rawNote    = Trim(args.substr(sp + 1));
+    if (rawNote.empty()) { SendMsg(session, "Usage: .ec guildoffnote <playername> <note>"); return false; }
+    std::string note       = UnquoteArgument(rawNote);
 
     Player*    player     = sObjectMgr.GetPlayer(playerName.c_str());
     ObjectGuid playerGuid;
@@ -259,7 +303,8 @@ bool ExtracommandsModule::HandleGuildOFFNoteCommand(WorldSession* session, const
     if (!member) { SendMsg(session, "Could not find guild member slot for " + playerName); return false; }
 
     member->SetOFFNOTE(note);
-    SendMsg(session, "Officer note for " + playerName + " set to: " + note);
+    SendMsg(session, note.empty() ? "Officer note for " + playerName + " cleared."
+                                  : "Officer note for " + playerName + " set to: " + note);
     return true;
 }
 
@@ -275,6 +320,9 @@ bool ExtracommandsModule::HandleGuildListCommand(WorldSession* session, const st
 
     Guild* guild = sGuildMgr.GetGuildByName(guildName);
     if (!guild) { SendMsg(session, "Guild not found: " + guildName); return false; }
+
+    if (!session)
+        return true;
 
     ChatHandler handler(session);
     handler.PSendSysMessage("GUILD|%s", guild->GetName().c_str());
@@ -339,6 +387,9 @@ bool ExtracommandsModule::HandleGuildCountCommand(WorldSession* session, const s
         online   = f[1].GetUInt32();
     }
 
+    if (!session)
+        return true;
+
     ChatHandler handler(session);
     handler.PSendSysMessage("Guild: %s", guildName.c_str());
     handler.PSendSysMessage("Members: %u total | %d online | avg level %.1f", total, online, avgLevel);
@@ -369,6 +420,9 @@ bool ExtracommandsModule::HandleGuildEmptyCommand(WorldSession* session, const s
         SendMsg(session, "No guilds found.");
         return true;
     }
+
+    if (!session)
+        return true;
 
     ChatHandler handler(session);
     handler.SendSysMessage("Guilds with no online members:");
@@ -423,11 +477,14 @@ bool ExtracommandsModule::HandleGuildFlavorCommand(WorldSession* session, const 
     uint32 memberCount = guild->GetMemberSize();
     if (memberCount == 0) { SendMsg(session, "Guild has no members."); return false; }
 
-    ChatHandler handler(session);
-
     // ── Show mode ──────────────────────────────────────────────────────────
     if (remainder.empty())
     {
+        if (!session)
+            return true;
+
+        ChatHandler handler(session);
+
         // Query DB store for the first member to show current overrides
         auto firstMember = CharacterDatabase.PQuery(
             "SELECT guid FROM guild_member WHERE guildid = %u LIMIT 1", guild->GetId());
@@ -517,8 +574,12 @@ bool ExtracommandsModule::HandleGuildFlavorCommand(WorldSession* session, const 
         } while (memberResults->NextRow());
     }
 
-    handler.PSendSysMessage("Guild [%s] flavor set to '%s' — %d members updated.",
-        guildName.c_str(), isDefault ? "default" : flavor.c_str(), applied);
+    if (session)
+    {
+        ChatHandler handler(session);
+        handler.PSendSysMessage("Guild [%s] flavor set to '%s' — %d members updated.",
+            guildName.c_str(), isDefault ? "default" : flavor.c_str(), applied);
+    }
     return true;
 }
 
@@ -536,6 +597,9 @@ bool ExtracommandsModule::HandleBotStratCommand(WorldSession* session, const std
     SendMsg(session, "Server not built with playerbots.");
     return false;
 #else
+    if (!session)
+        return false;
+
     if (args.empty())
     {
         SendMsg(session, "Usage: .ec botstrat <name> [co|nc|react|dead <strategies>]");
@@ -630,6 +694,9 @@ bool ExtracommandsModule::HandleNearbyStrategiesCommand(WorldSession* session, c
     SendMsg(session, "Server not built with playerbots.");
     return false;
 #else
+    if (!session)
+        return false;
+
     float radius = 30.0f;
     if (!args.empty())
     {
